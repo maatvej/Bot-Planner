@@ -7,45 +7,21 @@ from extensions import bot
 timers = {}
 
 # основная функция таймера
-# принимает в себя id пользователя и время события и остановку события
 def timer(user_id, set_time, stop_event):
-    # цикл получения времени и расчет остаточного времени
+    # цикл будет продолжаться, пока stop_event не будет установлено (is_set вернет True)
+    # позволяет завершить работу функции из потока
     while not stop_event.is_set():
-        # получение времени в данную секунду
+        # получаем текущее время
         now = datetime.now()
-        # разница между полученным увременем и сейчас
-        difference_time = set_time - now
-
-        # # если полученное время в секундах меньше или равно 0
-        # if difference_time.total_seconds() <= 0:
-        #     # бот присылает уведомление
-        #     bot.send_message(user_id, 'Настало время события!')
-        #     # программа заканчивается
-        #     break
-
-        # количество дней из переменной разницы во времени
-        days = difference_time.days
-        # секунды из этой же переменной
-        sec = difference_time.seconds
-        # количество полных часов из оставшихся секунд
-        hour = sec // 3600
-        # колиичество минут (// получаем целые минут и остаток, игнорирую полный час)
-        minutes = (sec // 60) % 60
-        # оставшиеся секунды
-        seconds = sec % 60
-
-        # сообщение пользователю с таймером
-        time_message = f'Осталось {days} дней, {hour} часов,  {minutes} минут, {seconds} секунд.'
-
-        # блок try отправляет сообщение пользователю
-        try:
-            bot.send_message(user_id, time_message)
-        # except вызывает исключение в случае ошибки
-        except Exception as e:
-            print(f'Ошибка отправки сообщения: {e}')
-
-        # как часто срабатывает таймер (каждые 60 сек)
-        time.sleep(3600)
+        # если сейчас больше или равно полученному времени
+        if now >= set_time:
+            try:
+                bot.send_message(user_id, 'Настало время события!')
+                del timers[user_id]
+            except Exception as e:
+                print(f'Ошибка отправки сообщения: {e}')
+            break
+        time.sleep(1)
 
 
 
@@ -58,6 +34,11 @@ def input_time(message):
         # от юзера
         user_id = message.chat.id
 
+        # Проверка на то, что введенная дата больше текущего момента
+        if set_time <= datetime.now():
+            bot.send_message(user_id, 'Вызовите команду /timer и введите дату и время, которые больше текущего времени.')
+            return
+
         # если пользователя нет в таймерах, то создается новый поток
         if user_id not in timers:
             # Используем Event для завершения потока
@@ -68,13 +49,10 @@ def input_time(message):
             timer_th.start()
             # сохраняем по ключу в словаре (проверяет запущен ли таймер у пользователя)
             timers[user_id] = (timer_th, stop_event, set_time)
-        # если пользователь существует, то выводит сообщение
-        elif set_time.total_seconds() <= 0:
-            bot.send_message(user_id, 'Настало время события!')
+            bot.send_message(user_id, 'Таймер установлен.')
         else:
             bot.send_message(user_id, 'Вы уже запустили таймер.')
 
     # срабатывает, если введен неверный формат
     except ValueError:
         bot.send_message(message.chat.id, "Неверный формат даты. Пожалуйста, используйте формат 'YYYY-MM-DD HH:MM:SS'.")
-
