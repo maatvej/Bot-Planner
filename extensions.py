@@ -2,6 +2,9 @@ import telebot
 from config import API_TOKEN
 from sqlalchemy.orm import Session
 from dbcreate import Note, engine
+import time
+from telebot import types
+from datetime import datetime
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -128,3 +131,18 @@ def process_view_note(message):
         bot.send_message(chat_id, f"{note.caption}\n{note.body}")
     else:
         bot.send_message(chat_id, f'Заметка "{caption}" не найдена.')
+
+def input_date(message):
+    try:
+        # Проверяем, что дата введена в правильном формате
+        planned_date = datetime.strptime(message.text, '%Y-%m-%d %H:%M:%S')
+        bot.send_message(message.chat.id, f'Вы запланировали отдых на {planned_date.date()}.')
+        time.sleep(2)
+        markup_time_start = types.InlineKeyboardMarkup()
+        btn_yes_start = types.InlineKeyboardButton('Да', callback_data='yes_time')
+        btn_no_start = types.InlineKeyboardButton('Нет', callback_data='no_time')
+        markup_time_start.row(btn_yes_start, btn_no_start)
+        bot.send_message(message.chat.id, f'Начнем отсчет?', reply_markup=markup_time_start)
+    except ValueError:
+        bot.send_message(message.chat.id, 'Неверный формат даты. Пожалуйста, используйте формат ГГГГ-ММ-ДД ЧЧ:MM:СС.')
+        bot.register_next_step_handler(message, input_date)
